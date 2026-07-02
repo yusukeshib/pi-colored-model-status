@@ -11,6 +11,9 @@
 	],
 	"type": "module",
 	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
 	"author": "Yusuke Shibata <yusukeshib@gmail.com>",
 	"homepage": "https://github.com/yusukeshib/pi-colored-model-status#readme",
 	"repository": {
