@@ -8,6 +8,8 @@ pi's footer with a background-colored badge. Everything else the default
 footer shows (cwd, git branch, token stats, context %, and other extensions'
 status line) is faithfully reproduced.
 
+![colored model badge in pi's footer](assets/preview.png)
+
 ## Colors
 
 Model families are matched by substring against the model id and painted with

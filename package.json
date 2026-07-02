@@ -1,6 +1,6 @@
 {
 	"name": "@yusukeshib/pi-colored-model-status",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Color-code the active model in pi's footer so you can tell at a glance which model family (opus, sonnet, fable, gpt, gemini, …) is in use.",
 	"keywords": [
 		"pi-package",
@@ -25,6 +25,7 @@
 	},
 	"files": [
 		"extensions/",
+		"assets/",
 		"README.md",
 		"LICENSE"
 	],
@@ -51,6 +52,7 @@
 	"pi": {
 		"extensions": [
 			"./extensions"
-		]
+		],
+		"image": "https://raw.githubusercontent.com/yusukeshib/pi-colored-model-status/main/assets/preview.png"
 	}
 }
