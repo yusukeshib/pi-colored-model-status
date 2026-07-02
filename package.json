@@ -1,0 +1,53 @@
+{
+	"name": "@yusukeshib/pi-colored-model-status",
+	"version": "0.1.0",
+	"description": "Color-code the active model in pi's footer so you can tell at a glance which model family (opus, sonnet, fable, gpt, gemini, …) is in use.",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"footer",
+		"model",
+		"status"
+	],
+	"type": "module",
+	"license": "MIT",
+	"author": "Yusuke Shibata <yusukeshib@gmail.com>",
+	"homepage": "https://github.com/yusukeshib/pi-colored-model-status#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/yusukeshib/pi-colored-model-status.git"
+	},
+	"bugs": {
+		"url": "https://github.com/yusukeshib/pi-colored-model-status/issues"
+	},
+	"files": [
+		"extensions/",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"check": "bun run typecheck && bun run biome:check",
+		"release": "bun publish --access public",
+		"lint": "biome lint .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"biome:check": "biome check ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.14",
+		"@earendil-works/pi-coding-agent": "^0.80.0",
+		"@earendil-works/pi-tui": "*",
+		"@types/bun": "^1.3.0",
+		"typescript": "^5.7.0"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*"
+	},
+	"pi": {
+		"extensions": [
+			"./extensions"
+		]
+	}
+}
