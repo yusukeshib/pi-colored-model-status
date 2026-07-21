@@ -1,6 +1,6 @@
 {
 	"name": "@yusukeshib/pi-colored-model-status",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Color-code the active model in pi's footer so you can tell at a glance which model family (opus, sonnet, fable, gpt, gemini, …) is in use.",
 	"keywords": [
 		"pi-package",
