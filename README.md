@@ -4,7 +4,7 @@ A [pi](https://pi.dev) extension that color-codes the active model in the
 footer, so you can tell at a glance which model family is in use.
 
 It replaces the plain `claude-opus-4-8 • medium` text in the bottom-right of
-pi's footer with a background-colored badge. Everything else the default
+pi's footer with independently background-colored model and thinking badges. Everything else the default
 footer shows (cwd, git branch, token stats, context %, and other extensions'
 status line) is faithfully reproduced.
 
@@ -25,6 +25,18 @@ strongly distinct hues:
 | `gemini`                  | Google blue      |
 | `grok`                    | slate            |
 | anything else             | gray (fallback)  |
+
+Thinking effort has its own independent color scale:
+
+| Level     | Color     |
+| --------- | --------- |
+| `off`     | gray      |
+| `minimal` | blue-gray |
+| `low`     | green     |
+| `medium`  | amber     |
+| `high`    | orange    |
+| `xhigh`   | red       |
+| `max`     | magenta   |
 
 The foreground color (black or white) is chosen automatically from the
 background's luminance for readability. The badge follows model changes made
@@ -50,17 +62,23 @@ pi -e npm:@yusukeshib/pi-colored-model-status
 
 ## Customize
 
-Edit the `BADGES` array at the top of
+Edit the `MODEL_BADGES` and `THINKING_BADGES` arrays at the top of
 [`extensions/colored-model-status.ts`](extensions/colored-model-status.ts).
 Each entry maps substring keywords to an RGB background (and an optional `fg`):
 
 ```ts
-const BADGES = [
+const MODEL_BADGES = [
   { match: ["opus", "terra"], bg: [147, 51, 234] },
   { match: ["sonnet", "luna"], bg: [14, 165, 233] },
   { match: ["fable", "sol"], bg: [234, 88, 12] },
   // …add your own, e.g.:
   { match: ["deepseek"], bg: [30, 90, 200] },
+];
+
+const THINKING_BADGES = [
+  { match: ["low"], bg: [22, 163, 74] },
+  { match: ["high"], bg: [234, 88, 12] },
+  // …
 ];
 ```
 

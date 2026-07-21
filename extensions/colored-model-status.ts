@@ -26,8 +26,9 @@ interface Badge {
 	fg?: Rgb;
 }
 
-// Matched top-to-bottom; first hit wins. Hues are spread far apart per family.
-const BADGES: readonly Badge[] = [
+// Model families and thinking levels are colored independently.
+// Each list is matched top-to-bottom; first hit wins.
+const MODEL_BADGES: readonly Badge[] = [
 	{ match: ["opus", "terra"], bg: [147, 51, 234] }, // deep purple
 	{ match: ["sonnet", "luna"], bg: [14, 165, 233] }, // bright cyan-blue
 	{ match: ["fable", "sol"], bg: [234, 88, 12] }, // vivid orange
@@ -37,11 +38,21 @@ const BADGES: readonly Badge[] = [
 	{ match: ["grok"], bg: [30, 41, 59] }, // slate
 ];
 
+const THINKING_BADGES: readonly Badge[] = [
+	{ match: ["off"], bg: [82, 82, 91] }, // gray
+	{ match: ["minimal"], bg: [71, 85, 105] }, // blue-gray
+	{ match: ["low"], bg: [22, 163, 74] }, // green
+	{ match: ["medium"], bg: [202, 138, 4] }, // amber
+	{ match: ["xhigh"], bg: [220, 38, 38] }, // red
+	{ match: ["high"], bg: [234, 88, 12] }, // orange
+	{ match: ["max"], bg: [219, 39, 119] }, // magenta
+];
+
 const FALLBACK: Badge = { match: [], bg: [82, 82, 91] }; // gray
 
-function pickBadge(id: string): Badge {
-	const lower = id.toLowerCase();
-	return BADGES.find((b) => b.match.some((k) => lower.includes(k))) ?? FALLBACK;
+function pickBadge(value: string, badges: readonly Badge[]): Badge {
+	const lower = value.toLowerCase();
+	return badges.find((badge) => badge.match.some((keyword) => lower.includes(keyword))) ?? FALLBACK;
 }
 
 /** Pick a contrasting foreground (black/white) from the background luminance. */
@@ -159,38 +170,44 @@ export default function (pi: ExtensionAPI) {
 						statsLeftWidth = visibleWidth(statsLeft);
 					}
 
-					// --- Right side: model + thinking as a colored badge ---
+					// --- Right side: independently colored model and thinking badges ---
 					const modelName = model?.id || "no-model";
-					let rightText = modelName;
-					if (model?.reasoning) {
-						const level = pi.getThinkingLevel() || "off";
-						rightText = level === "off" ? `${modelName} • thinking off` : `${modelName} • ${level}`;
-					}
-					// Prefix (provider) when more than one provider is available
+					let modelText = modelName;
 					if (footerData.getAvailableProviderCount() > 1 && model) {
-						rightText = `(${model.provider}) ${rightText}`;
+						modelText = `(${model.provider}) ${modelText}`;
 					}
-
-					const badge = pickBadge(modelName);
-					// Badge adds a leading/trailing space, so width = text width + 2
-					const rightWidth = visibleWidth(rightText) + 2;
+					const thinkingLevel = model?.reasoning ? pi.getThinkingLevel() || "off" : undefined;
+					const thinkingText = thinkingLevel === "off" ? "thinking off" : thinkingLevel;
+					const modelBadge = pickBadge(modelName, MODEL_BADGES);
+					const thinkingBadge = thinkingLevel
+						? pickBadge(thinkingLevel, THINKING_BADGES)
+						: undefined;
+					const thinkingWidth = thinkingText && thinkingBadge ? visibleWidth(thinkingText) + 2 : 0;
+					const rightWidth = visibleWidth(modelText) + 2 + thinkingWidth;
 
 					const minPadding = 2;
 					const dimStatsLeft = theme.fg("dim", statsLeft);
 					let statsLine: string;
 					if (statsLeftWidth + minPadding + rightWidth <= width) {
 						const pad = " ".repeat(width - statsLeftWidth - rightWidth);
-						statsLine = dimStatsLeft + theme.fg("dim", pad) + paintBadge(rightText, badge);
+						const thinking =
+							thinkingText && thinkingBadge ? paintBadge(thinkingText, thinkingBadge) : "";
+						statsLine =
+							dimStatsLeft + theme.fg("dim", pad) + paintBadge(modelText, modelBadge) + thinking;
 					} else {
-						// Right side does not fit: truncate text, then paint
-						const avail = width - statsLeftWidth - minPadding - 2; // -2 for the badge's padding spaces
-						if (avail > 0) {
-							const truncated = truncateToWidth(rightText, avail, "");
-							const painted = paintBadge(truncated, badge);
-							const pad = " ".repeat(
-								Math.max(0, width - statsLeftWidth - (visibleWidth(truncated) + 2)),
-							);
-							statsLine = dimStatsLeft + theme.fg("dim", pad) + painted;
+						// Preserve the thinking badge when possible and truncate only the model badge.
+						const modelAvail = width - statsLeftWidth - minPadding - thinkingWidth - 2;
+						if (modelAvail > 0) {
+							const truncatedModel = truncateToWidth(modelText, modelAvail, "");
+							const thinking =
+								thinkingText && thinkingBadge ? paintBadge(thinkingText, thinkingBadge) : "";
+							const paintedWidth = visibleWidth(truncatedModel) + 2 + thinkingWidth;
+							const pad = " ".repeat(Math.max(0, width - statsLeftWidth - paintedWidth));
+							statsLine =
+								dimStatsLeft +
+								theme.fg("dim", pad) +
+								paintBadge(truncatedModel, modelBadge) +
+								thinking;
 						} else {
 							statsLine = dimStatsLeft;
 						}
