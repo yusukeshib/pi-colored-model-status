@@ -17,9 +17,9 @@ strongly distinct hues:
 
 | Family                    | Color            |
 | ------------------------- | ---------------- |
-| `opus`                    | deep purple      |
-| `sonnet`                  | bright cyan-blue |
-| `fable`                   | vivid orange     |
+| `opus`, `terra`           | deep purple      |
+| `sonnet`, `luna`          | bright cyan-blue |
+| `fable`, `sol`            | vivid orange     |
 | `haiku`                   | green            |
 | `gpt`, `o1`, `o3`, `o4`   | OpenAI teal      |
 | `gemini`                  | Google blue      |
@@ -56,9 +56,9 @@ Each entry maps substring keywords to an RGB background (and an optional `fg`):
 
 ```ts
 const BADGES = [
-  { match: ["opus"], bg: [147, 51, 234] },
-  { match: ["sonnet"], bg: [14, 165, 233] },
-  { match: ["fable"], bg: [234, 88, 12] },
+  { match: ["opus", "terra"], bg: [147, 51, 234] },
+  { match: ["sonnet", "luna"], bg: [14, 165, 233] },
+  { match: ["fable", "sol"], bg: [234, 88, 12] },
   // …add your own, e.g.:
   { match: ["deepseek"], bg: [30, 90, 200] },
 ];

@@ -28,9 +28,9 @@ interface Badge {
 
 // Matched top-to-bottom; first hit wins. Hues are spread far apart per family.
 const BADGES: readonly Badge[] = [
-	{ match: ["opus"], bg: [147, 51, 234] }, // deep purple
-	{ match: ["sonnet"], bg: [14, 165, 233] }, // bright cyan-blue
-	{ match: ["fable"], bg: [234, 88, 12] }, // vivid orange
+	{ match: ["opus", "terra"], bg: [147, 51, 234] }, // deep purple
+	{ match: ["sonnet", "luna"], bg: [14, 165, 233] }, // bright cyan-blue
+	{ match: ["fable", "sol"], bg: [234, 88, 12] }, // vivid orange
 	{ match: ["haiku"], bg: [22, 163, 74] }, // green
 	{ match: ["gpt", "o1", "o3", "o4"], bg: [16, 163, 127] }, // OpenAI teal
 	{ match: ["gemini"], bg: [66, 133, 244] }, // Google blue
