@@ -26,21 +26,11 @@ strongly distinct hues:
 | `grok`                    | slate            |
 | anything else             | gray (fallback)  |
 
-Thinking effort has its own independent color scale:
-
-| Level     | Color     |
-| --------- | --------- |
-| `off`     | gray      |
-| `minimal` | blue-gray |
-| `low`     | green     |
-| `medium`  | amber     |
-| `high`    | orange    |
-| `xhigh`   | red       |
-| `max`     | magenta   |
-
-The foreground color (black or white) is chosen automatically from the
-background's luminance for readability. The badge follows model changes made
-via `/model` or `Ctrl+P`.
+Thinking badges use the same colors as pi's input-area border for each thinking
+level (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`). They follow
+the active pi theme, including theme changes and 256-color terminals. Model
+badges choose a black or white foreground from the background's luminance.
+The badges follow model changes made via `/model` or `Ctrl+P`.
 
 ## Install
 
@@ -62,7 +52,7 @@ pi -e npm:@yusukeshib/pi-colored-model-status
 
 ## Customize
 
-Edit the `MODEL_BADGES` and `THINKING_BADGES` arrays at the top of
+Edit the `MODEL_BADGES` array at the top of
 [`extensions/colored-model-status.ts`](extensions/colored-model-status.ts).
 Each entry maps substring keywords to an RGB background (and an optional `fg`):
 
@@ -74,12 +64,6 @@ const MODEL_BADGES = [
   // …add your own, e.g.:
   { match: ["deepseek"], bg: [30, 90, 200] },
 ];
-
-const THINKING_BADGES = [
-  { match: ["low"], bg: [22, 163, 74] },
-  { match: ["high"], bg: [234, 88, 12] },
-  // …
-];
 ```
 
 Matching is a case-insensitive substring test against the model id, so `gpt`
@@ -90,9 +74,10 @@ wins.
 
 `theme.bg()` only accepts theme tokens, so to render arbitrary,
 model-specific colors the extension emits raw SGR truecolor escapes
-(`48;2;R;G;B`) directly. It uses `ctx.ui.setFooter()` to take over the footer
-and re-implements pi's default footer layout, coloring only the model +
-thinking-level segment.
+(`48;2;R;G;B`) directly. Thinking badges instead reverse pi's themed editor
+border foreground color to match the active thinking level. It uses
+`ctx.ui.setFooter()` to take over the footer and re-implements pi's default
+footer layout, coloring only the model + thinking-level segment.
 
 Because it re-creates the footer, it mirrors pi's default footer rendering as
 of the pinned `@earendil-works/pi-coding-agent` version. If pi's footer layout

@@ -8,8 +8,8 @@
  * token stats, context %, extension statuses) while painting only the
  * model + thinking segment.
  *
- * `theme.bg()` only accepts theme tokens, so to get arbitrary, model-specific
- * colors we emit raw SGR truecolor escapes (48;2;R;G;B) directly.
+ * `theme.bg()` only accepts theme tokens, so model-specific colors use raw
+ * SGR truecolor escapes. Thinking badges invert pi's themed editor border color.
  */
 
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -26,8 +26,7 @@ interface Badge {
 	fg?: Rgb;
 }
 
-// Model families and thinking levels are colored independently.
-// Each list is matched top-to-bottom; first hit wins.
+// Model families are matched top-to-bottom; first hit wins.
 const MODEL_BADGES: readonly Badge[] = [
 	{ match: ["opus", "terra"], bg: [147, 51, 234] }, // deep purple
 	{ match: ["sonnet", "luna"], bg: [14, 165, 233] }, // bright cyan-blue
@@ -36,16 +35,6 @@ const MODEL_BADGES: readonly Badge[] = [
 	{ match: ["gpt", "o1", "o3", "o4"], bg: [16, 163, 127] }, // OpenAI teal
 	{ match: ["gemini"], bg: [66, 133, 244] }, // Google blue
 	{ match: ["grok"], bg: [30, 41, 59] }, // slate
-];
-
-const THINKING_BADGES: readonly Badge[] = [
-	{ match: ["off"], bg: [82, 82, 91] }, // gray
-	{ match: ["minimal"], bg: [71, 85, 105] }, // blue-gray
-	{ match: ["low"], bg: [22, 163, 74] }, // green
-	{ match: ["medium"], bg: [202, 138, 4] }, // amber
-	{ match: ["xhigh"], bg: [220, 38, 38] }, // red
-	{ match: ["high"], bg: [234, 88, 12] }, // orange
-	{ match: ["max"], bg: [219, 39, 119] }, // magenta
 ];
 
 const FALLBACK: Badge = { match: [], bg: [82, 82, 91] }; // gray
@@ -179,10 +168,12 @@ export default function (pi: ExtensionAPI) {
 					const thinkingLevel = model?.reasoning ? pi.getThinkingLevel() || "off" : undefined;
 					const thinkingText = thinkingLevel === "off" ? "thinking off" : thinkingLevel;
 					const modelBadge = pickBadge(modelName, MODEL_BADGES);
-					const thinkingBadge = thinkingLevel
-						? pickBadge(thinkingLevel, THINKING_BADGES)
-						: undefined;
-					const thinkingWidth = thinkingText && thinkingBadge ? visibleWidth(thinkingText) + 2 : 0;
+					const thinkingWidth = thinkingText ? visibleWidth(thinkingText) + 2 : 0;
+					// Reverse video turns pi's editor border foreground into the badge background.
+					const thinking =
+						thinkingLevel && thinkingText
+							? `\x1b[7m${theme.getThinkingBorderColor(thinkingLevel)(` ${thinkingText} `)}\x1b[0m`
+							: "";
 					const rightWidth = visibleWidth(modelText) + 2 + thinkingWidth;
 
 					const minPadding = 2;
@@ -190,8 +181,6 @@ export default function (pi: ExtensionAPI) {
 					let statsLine: string;
 					if (statsLeftWidth + minPadding + rightWidth <= width) {
 						const pad = " ".repeat(width - statsLeftWidth - rightWidth);
-						const thinking =
-							thinkingText && thinkingBadge ? paintBadge(thinkingText, thinkingBadge) : "";
 						statsLine =
 							dimStatsLeft + theme.fg("dim", pad) + paintBadge(modelText, modelBadge) + thinking;
 					} else {
@@ -199,8 +188,6 @@ export default function (pi: ExtensionAPI) {
 						const modelAvail = width - statsLeftWidth - minPadding - thinkingWidth - 2;
 						if (modelAvail > 0) {
 							const truncatedModel = truncateToWidth(modelText, modelAvail, "");
-							const thinking =
-								thinkingText && thinkingBadge ? paintBadge(thinkingText, thinkingBadge) : "";
 							const paintedWidth = visibleWidth(truncatedModel) + 2 + thinkingWidth;
 							const pad = " ".repeat(Math.max(0, width - statsLeftWidth - paintedWidth));
 							statsLine =
