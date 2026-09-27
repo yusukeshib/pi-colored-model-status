@@ -30,7 +30,9 @@ Thinking badges use the same colors as pi's input-area border for each thinking
 level (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`). They follow
 the active pi theme, including theme changes and 256-color terminals. Model
 badges choose a black or white foreground from the background's luminance.
-The badges follow model changes made via `/model` or `Ctrl+P`.
+Thinking badges also choose black or white text based on contrast with the
+resolved border color. The badges follow model changes made via `/model` or
+`Ctrl+P`.
 
 ## Install
 
@@ -74,8 +76,8 @@ wins.
 
 `theme.bg()` only accepts theme tokens, so to render arbitrary,
 model-specific colors the extension emits raw SGR truecolor escapes
-(`48;2;R;G;B`) directly. Thinking badges instead reverse pi's themed editor
-border foreground color to match the active thinking level. It uses
+(`48;2;R;G;B`) directly. Thinking badges instead use pi's themed editor
+border foreground color as their background, with contrasting text. It uses
 `ctx.ui.setFooter()` to take over the footer and re-implements pi's default
 footer layout, coloring only the model + thinking-level segment.
 

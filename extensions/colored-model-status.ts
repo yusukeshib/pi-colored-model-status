@@ -9,11 +9,12 @@
  * model + thinking segment.
  *
  * `theme.bg()` only accepts theme tokens, so model-specific colors use raw
- * SGR truecolor escapes. Thinking badges invert pi's themed editor border color.
+ * SGR truecolor escapes. Thinking badges reuse pi's themed editor border color
+ * and choose a contrasting foreground.
  */
 
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 type Rgb = readonly [number, number, number];
@@ -57,6 +58,78 @@ function paintBadge(text: string, badge: Badge): string {
 	const bgSeq = `\x1b[48;2;${br};${bg};${bb}m`;
 	const fgSeq = `\x1b[38;2;${fr};${fg};${fb}m`;
 	return `${bgSeq}${fgSeq} ${text} \x1b[0m`;
+}
+
+// Approximate ANSI 0–15 palette values; terminal overrides may differ.
+const ANSI16: readonly Rgb[] = [
+	[0, 0, 0],
+	[128, 0, 0],
+	[0, 128, 0],
+	[128, 128, 0],
+	[0, 0, 128],
+	[128, 0, 128],
+	[0, 128, 128],
+	[192, 192, 192],
+	[128, 128, 128],
+	[255, 0, 0],
+	[0, 255, 0],
+	[255, 255, 0],
+	[0, 0, 255],
+	[255, 0, 255],
+	[0, 255, 255],
+	[255, 255, 255],
+];
+
+/** Decode the color pi actually uses for the editor border, including 256-color mode. */
+function thinkingColor(ansi: string): { background: string; rgb: Rgb } | undefined {
+	const sgr = ansi.startsWith("\x1b[") ? ansi.slice(2) : "";
+	const truecolor = /^38;2;(\d+);(\d+);(\d+)m/.exec(sgr);
+	if (truecolor) {
+		return {
+			background: `\x1b[48;2;${truecolor[1]};${truecolor[2]};${truecolor[3]}m`,
+			rgb: [Number(truecolor[1]), Number(truecolor[2]), Number(truecolor[3])],
+		};
+	}
+	const palette = /^38;5;(\d+)m/.exec(sgr);
+	if (!palette) return undefined;
+	const index = Number(palette[1]);
+	let rgb: Rgb;
+	if (index < 16) rgb = ANSI16[index] ?? [0, 0, 0];
+	else if (index < 232) {
+		const cube = (n: number) => (n === 0 ? 0 : 55 + n * 40);
+		const i = index - 16;
+		rgb = [cube(Math.floor(i / 36)), cube(Math.floor(i / 6) % 6), cube(i % 6)];
+	} else if (index < 256) {
+		const gray = 8 + (index - 232) * 10;
+		rgb = [gray, gray, gray];
+	} else return undefined;
+	return { background: `\x1b[48;5;${index}m`, rgb };
+}
+
+/** WCAG contrast: choose the more legible of black and white. */
+function contrastFg([r, g, b]: Rgb): 0 | 255 {
+	const linear = (channel: number) => {
+		const s = channel / 255;
+		return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+	};
+	const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+	return luminance > 0.179 ? 0 : 255;
+}
+
+function paintThinkingBadge(
+	text: string,
+	level: Parameters<Theme["getThinkingBorderColor"]>[0],
+	theme: Theme,
+): string {
+	const styled = theme.getThinkingBorderColor(level)(` ${text} `);
+	const color = thinkingColor(styled);
+	if (!color) return `\x1b[7m${styled}\x1b[0m`; // Terminal-default/unknown color: retain native reverse video.
+	const fg = contrastFg(color.rgb);
+	const fgSeq =
+		theme.getColorMode() === "truecolor"
+			? `\x1b[38;2;${fg};${fg};${fg}m`
+			: `\x1b[38;5;${fg === 0 ? 0 : 15}m`;
+	return `${color.background}${fgSeq} ${text} \x1b[0m`;
 }
 
 function formatTokens(count: number): string {
@@ -169,10 +242,9 @@ export default function (pi: ExtensionAPI) {
 					const thinkingText = thinkingLevel === "off" ? "thinking off" : thinkingLevel;
 					const modelBadge = pickBadge(modelName, MODEL_BADGES);
 					const thinkingWidth = thinkingText ? visibleWidth(thinkingText) + 2 : 0;
-					// Reverse video turns pi's editor border foreground into the badge background.
 					const thinking =
 						thinkingLevel && thinkingText
-							? `\x1b[7m${theme.getThinkingBorderColor(thinkingLevel)(` ${thinkingText} `)}\x1b[0m`
+							? paintThinkingBadge(thinkingText, thinkingLevel, theme)
 							: "";
 					const rightWidth = visibleWidth(modelText) + 2 + thinkingWidth;
 

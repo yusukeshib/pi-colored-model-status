@@ -17,5 +17,5 @@
 		"skipLibCheck": true,
 		"types": ["bun"]
 	},
-	"include": ["extensions"]
+	"include": ["extensions", "tests"]
 }
