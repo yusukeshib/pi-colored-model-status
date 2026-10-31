@@ -150,6 +150,78 @@ function formatCwd(cwd: string, home: string | undefined): string {
 	return rel === "" ? "~" : `~${sep}${rel}`;
 }
 
+interface UsageLike {
+	input: number;
+	output: number;
+	cacheRead: number;
+	cacheWrite: number;
+	cost: { total: number };
+}
+
+export interface UsageTotals {
+	input: number;
+	output: number;
+	cacheRead: number;
+	cacheWrite: number;
+	cost: number;
+	latestCacheHitRate: number | undefined;
+}
+
+function isUsage(value: unknown): value is UsageLike {
+	if (!value || typeof value !== "object") return false;
+	const u = value as Partial<UsageLike>;
+	return (
+		typeof u.input === "number" &&
+		typeof u.output === "number" &&
+		typeof u.cacheRead === "number" &&
+		typeof u.cacheWrite === "number" &&
+		typeof u.cost?.total === "number"
+	);
+}
+
+/**
+ * Cumulative usage across all session entries, mirroring pi's default footer:
+ * assistant messages, standalone usage entries, tool results that report
+ * usage, and branch summaries / compactions.
+ */
+export function sumUsage(entries: readonly unknown[]): UsageTotals {
+	const totals: UsageTotals = {
+		input: 0,
+		output: 0,
+		cacheRead: 0,
+		cacheWrite: 0,
+		cost: 0,
+		latestCacheHitRate: undefined,
+	};
+	const add = (u: UsageLike) => {
+		totals.input += u.input;
+		totals.output += u.output;
+		totals.cacheRead += u.cacheRead;
+		totals.cacheWrite += u.cacheWrite;
+		totals.cost += u.cost.total;
+	};
+	for (const raw of entries) {
+		const entry = raw as {
+			type?: string;
+			usage?: unknown;
+			message?: { role?: string; usage?: unknown };
+		};
+		if (entry.type === "usage" || entry.type === "branch_summary" || entry.type === "compaction") {
+			if (isUsage(entry.usage)) add(entry.usage);
+		} else if (entry.type === "message" && isUsage(entry.message?.usage)) {
+			const u = entry.message.usage;
+			if (entry.message.role === "assistant") {
+				add(u);
+				const prompt = u.input + u.cacheRead + u.cacheWrite;
+				totals.latestCacheHitRate = prompt > 0 ? (u.cacheRead / prompt) * 100 : undefined;
+			} else if (entry.message.role === "toolResult") {
+				add(u);
+			}
+		}
+	}
+	return totals;
+}
+
 function sanitizeStatus(text: string): string {
 	return text
 		.replace(/[\r\n\t]/g, " ")
@@ -162,6 +234,46 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.setFooter((tui, theme, footerData) => {
 			const unsub = footerData.onBranchChange(() => tui.requestRender());
 
+			// The footer renders on every frame (up to ~60fps while streaming), but
+			// usage totals and context usage scan the whole session. Session entries
+			// are append-only and every append moves the leaf, so these values only
+			// change with the session, the leaf, or the model whose window applies.
+			let stats:
+				| {
+						sessionId: string;
+						leafId: string | null;
+						model: unknown;
+						contextWindow: number | undefined;
+						totals: UsageTotals;
+						usage: ReturnType<typeof ctx.getContextUsage>;
+				  }
+				| undefined;
+			const sessionStats = () => {
+				const sm = ctx.sessionManager;
+				const sessionId = sm.getSessionId();
+				const leafId = sm.getLeafId();
+				const model = ctx.model;
+				const contextWindow = model?.contextWindow;
+				if (
+					stats &&
+					stats.sessionId === sessionId &&
+					stats.leafId === leafId &&
+					stats.model === model &&
+					stats.contextWindow === contextWindow
+				) {
+					return stats;
+				}
+				stats = {
+					sessionId,
+					leafId,
+					model,
+					contextWindow,
+					totals: sumUsage(sm.getEntries()),
+					usage: ctx.getContextUsage(),
+				};
+				return stats;
+			};
+
 			return {
 				dispose: unsub,
 				invalidate() {},
@@ -169,28 +281,10 @@ export default function (pi: ExtensionAPI) {
 					const sm = ctx.sessionManager;
 					const model = ctx.model;
 
-					// --- Aggregate token stats across all entries ---
-					let input = 0;
-					let output = 0;
-					let cacheRead = 0;
-					let cacheWrite = 0;
-					let cost = 0;
-					let latestCacheHitRate: number | undefined;
-					for (const e of sm.getEntries()) {
-						if (e.type === "message" && e.message.role === "assistant") {
-							const u = e.message.usage;
-							input += u.input;
-							output += u.output;
-							cacheRead += u.cacheRead;
-							cacheWrite += u.cacheWrite;
-							cost += u.cost.total;
-							const prompt = u.input + u.cacheRead + u.cacheWrite;
-							latestCacheHitRate = prompt > 0 ? (u.cacheRead / prompt) * 100 : undefined;
-						}
-					}
+					// --- Aggregate token stats + context usage (cached; see sessionStats) ---
+					const { totals, usage } = sessionStats();
+					const { input, output, cacheRead, cacheWrite, cost, latestCacheHitRate } = totals;
 
-					// --- Context usage ---
-					const usage = ctx.getContextUsage();
 					const contextWindow = usage?.contextWindow ?? model?.contextWindow ?? 0;
 					const pctValue = usage?.percent ?? 0;
 					const pct = usage?.percent != null ? pctValue.toFixed(1) : "?";
